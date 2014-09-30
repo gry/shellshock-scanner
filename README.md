@@ -12,8 +12,12 @@ It uses only 1 thread per host to avoid time differences caused by multiple requ
 
 It can cause some False positives (Retest the possible possitives).
 
-
 I know is not the most portable code that you have ever seen but... it works ^ ^u. Anyway, any improvement is always welcome :)
+
+TODO Tests:
+1. Try to write a file in /var/www and read it? (this would be quite intrusive)
+2. Send mail with info 
+3. Ping IP address (then have a listener)
 
 Output CSV file
 ===============
