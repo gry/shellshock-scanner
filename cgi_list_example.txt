@@ -19,3 +19,8 @@
 /sys-cgi
 /dana-na/auth/url_default/welcome.cgi
 /cgi-bin/tree.php
+/cgi-bin/ICuGI/EST/blast_detail.cgi
+/cgi-bin/hello
+/cgi-sys/defaultwebpage.cgi
+/cgi-bin/w3mman2html.cgi
+/cgi-bin/status/status.cgi
