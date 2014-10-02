@@ -4,7 +4,7 @@
 
 """
 Scan a list of hosts with a list of CGIs trying to exploit
- the ShellShock vulnerability with different methods and payloads (CVE-2014-6271)
+ the ShellShock vulnerability with different methods and payloads (CVE-2014-6271, CVE-2014-6278)
 """
 
 import httplib,urllib,sys,time
@@ -207,7 +207,7 @@ def threadWork():
 
 def scan(target_list, cgi_list):
     global q
-    q = Queue(concurrent * 2)
+    q = Queue()
     for i in range(concurrent):
         t = Thread(target=threadWork)
         t.daemon = True
@@ -252,11 +252,12 @@ def writeCSV(target_results, output):
 def main():
     parser = argparse.ArgumentParser(
         add_help=False,
-        # usage='%(prog)s --help',
+        usage='%(prog)s --help',
         formatter_class=argparse.RawTextHelpFormatter,
         epilog='''
 Examples:
 \tpython %(prog)s host_list.txt cgi_list.txt
+\tpython %(prog)s host_list.txt cgi_list.txt -a 1 2 3 -e 2 -w results.csv --proto https -t 10
         '''
     )
     parser.add_argument('hostlist_file', help='\t\tFile of 1 host[:port] per line', metavar='<host_file>')
@@ -266,8 +267,6 @@ Examples:
     parser.add_argument('-w','--write', dest='output', help='\t\tWrite CSV file with the results', metavar='<csv>')
     parser.add_argument('-a','--attacks', dest='attacks', help='\t\tSet attacks to test:\n\t\t\t1:Sleep test\n\t\t\t2:Ping local test\n\t\t\t3:String return test\n\t\t\tDefault: [1,2]', metavar='', type=int, nargs='+', default=[1,2])
     parser.add_argument('-e','--exploit_type', dest='exploit', help='\t\tSet exploit payload (1 or 2)', metavar='', type=int, default=2)
-    # parser.add_argument('--tor', dest='tor', help='\t\tUse Tor anonymity network', action='store_true')
-    # parser.add_argument('--proxy', dest='proxy', help='\t\tProxy (e.g. \'http://127.0.0.1:8080\')', metavar='')
     parser.add_argument('-h', '--help', action='help', help='\t\tPrint this help message then exit')
     options = parser.parse_args()
     hostlist_file = options.hostlist_file
