@@ -7,7 +7,7 @@ Scan a list of hosts with a list of CGIs trying to exploit
  the ShellShock vulnerability with different methods and payloads (CVE-2014-6271, CVE-2014-6278)
 """
 
-import httplib,urllib,sys,time
+import httplib,sys,time
 import pprint
 import csv
 import argparse
@@ -49,6 +49,7 @@ def request(target_host, path, headers):
     end = time.time()
     delay = end - start
     # print >> sys.stderr, "%s:\t[%s]\t%s %s\t%s" %(target_host, command, res.status, res.reason, delay) 
+    # conn.close()
     return (res.status, res.reason, delay, res)
     
 def exploit(target_host, cgi_path, command):
@@ -73,6 +74,8 @@ def testShellShock(target_host, cgi_path, command):
             }
         status1, reason1, delay1, res1 = request(target_host, cgi_path, headers)
         status2, reason2, delay2, res2 = exploit(target_host, cgi_path, command2)
+        res1.close()
+        res2.close()
         # warning = delay2 > SLEEP_TIME
         # vulnerable = warning and delay2-delay1>DELAY_TIME
         return {'host': target_host,
@@ -86,6 +89,7 @@ def testShellShock(target_host, cgi_path, command):
                 'delay_diff' : delay2-delay1
                 }
     except Exception as e:
+        # print e.__class__, e
         # Probably exception with the connection
         return {'host': target_host,
                 'cgi_path': cgi_path,
@@ -126,6 +130,7 @@ def testString(target_host, cgi_path):
     try:
         status, reason, delay, res = exploit(target_host, cgi_path, command)
         data = res.read()
+        res.close()
         warning = vulnerable = TEST_STRING in data
         if vulnerable: 
             print "%s%s\t VULNERABLE TO STRING TEST" %(target_host, cgi_path)
@@ -140,6 +145,7 @@ def testString(target_host, cgi_path):
         print "%s%s - %s - %s - %s" %(target_host, cgi_path, "string test", "VULNERABLE" if shellshocktest['vulnerable'] else "False", shellshocktest['requests'][0][3])
         return shellshocktest
     except Exception as e:
+        # print e.__class__, e
         shellshocktest = {'host': target_host,
                     'cgi_path': cgi_path,
                     'requests': [(command, status,reason,delay,res), (None,None,None,None,None)],
@@ -207,7 +213,7 @@ def threadWork():
 
 def scan(target_list, cgi_list):
     global q
-    q = Queue()
+    q = Queue(concurrent * 2)
     for i in range(concurrent):
         t = Thread(target=threadWork)
         t.daemon = True
