@@ -3,8 +3,10 @@ shellshock-scanner
 
 A simple Shellshock scanner in python
 
+
 Test 1: uses the command sleep in different headers and check differences between delays to check the vulnerability.
 Test 2: uses the command ping -cX 127.0.0.1 and check differences between delays.
+Test 3: try to print a string and get it (causes a lot of False Positives)
 
 Receives a host list and a cgi list (and the number of threads). 
 
