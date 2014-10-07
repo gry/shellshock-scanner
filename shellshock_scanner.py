@@ -52,7 +52,6 @@ def request(target_host, path, headers):
             conn = httplib.HTTPSConnection(target_host, timeout=TIMEOUT)
         else:
             conn = httplib.HTTPConnection(target_host, timeout=TIMEOUT)
-    print PROXY, path
     headers=headers
     start = time.time()
     conn.request("GET", path, headers=headers)
@@ -100,7 +99,7 @@ def testShellShock(target_host, cgi_path, command):
                 'delay_diff' : delay2-delay1
                 }
     except Exception as e:
-        print e.__class__, e
+        # print e.__class__, e
         # Probably exception with the connection
         return {'host': target_host,
                 'cgi_path': cgi_path,
