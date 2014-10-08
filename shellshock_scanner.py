@@ -112,7 +112,7 @@ def testShellShock(target_host, cgi_path, command):
 
 
 def testSleep(target_host, cgi_path):
-    shellshocktest = testShellShock(target_host, cgi_path, "/bin/sleep %s" %SLEEP_TIME)
+    shellshocktest = testShellShock(target_host, cgi_path, "/usr/bin/env sleep %s" %SLEEP_TIME)
     if not shellshocktest['error']:
         shellshocktest['warning'] = shellshocktest['requests'][1][3] > SLEEP_TIME # Delay command request > sleep time
         shellshocktest['vulnerable'] = shellshocktest['warning'] and shellshocktest['delay_diff'] > SLEEP_DELAY
@@ -122,7 +122,7 @@ def testSleep(target_host, cgi_path):
     return shellshocktest
 
 def testPing(target_host, cgi_path):
-    shellshocktest = testShellShock(target_host, cgi_path, "/bin/ping -c%s 127.0.0.1" %PING_PKTS)
+    shellshocktest = testShellShock(target_host, cgi_path, "/usr/bin/env ping -c%s 127.0.0.1" %PING_PKTS)
     if not shellshocktest['error']:
         shellshocktest['warning'] = shellshocktest['requests'][1][3] > PING_DELAY # Delay command request > sleep time
         shellshocktest['vulnerable'] = shellshocktest['warning'] and shellshocktest['delay_diff'] > PING_DELAY
