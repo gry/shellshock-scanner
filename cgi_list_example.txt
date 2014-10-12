@@ -1,3 +1,5 @@
+/cgi-bin-sdb/printenv
+/cgi-mod/index.cgi
 /cgi-sys/entropysearch.cgi
 /cgi-sys/FormMail-clone.cgi
 /xul/
